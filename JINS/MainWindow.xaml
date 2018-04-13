@@ -4,28 +4,75 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:JINS"
+        xmlns:lvc="clr-namespace:LiveCharts.Wpf;assembly=LiveCharts.Wpf"
         mc:Ignorable="d"
-        Title="MainWindow" Height="327.577" Width="338.789">
+        Title="MainWindow">
     <Grid>
+        <Grid.Resources>
+            <Style TargetType="lvc:LineSeries">
+                <Setter Property="StrokeThickness" Value="3"></Setter>
+                <Setter Property="Stroke" Value="PaleVioletRed"></Setter>
+                <Setter Property="Fill" Value="LightGray"></Setter>
+                <Setter Property="PointGeometrySize" Value="0"></Setter>
+                <Setter Property="LineSmoothness" Value="0"></Setter>
+            </Style>
+            <Style TargetType="lvc:Axis">
+                <!--<Setter Property="ShowLabels" Value="False"></Setter>-->
+                <Setter Property="IsEnabled" Value="False"></Setter>
+            </Style>
+        </Grid.Resources>
         <Grid.ColumnDefinitions>
             <ColumnDefinition></ColumnDefinition>
             <ColumnDefinition></ColumnDefinition>
         </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
-            <RowDefinition Height="74*"></RowDefinition>
-            <RowDefinition Height="31*"></RowDefinition>
-            <RowDefinition Height="93*"/>
-            <RowDefinition Height="50*"></RowDefinition>
+            <RowDefinition Height="20*"></RowDefinition>
+            <RowDefinition Height="20*"></RowDefinition>
+            <RowDefinition Height="20*"/>
+            <RowDefinition Height="100*"></RowDefinition>
             <RowDefinition Height="49*"></RowDefinition>
         </Grid.RowDefinitions>
-        <ScrollViewer Grid.Column="0" Grid.Row="0" Grid.ColumnSpan="2" VerticalScrollBarVisibility="Auto">
+        <ScrollViewer Grid.Column="0" Grid.Row="0" Grid.ColumnSpan="1" VerticalScrollBarVisibility="Auto" >
             <StackPanel>
                 <TextBlock Name="rawText" Foreground="Black" FontFamily="Times New Roman" FontSize="11" TextWrapping="Wrap" Text="Output"/>
             </StackPanel>
         </ScrollViewer>
-        <Button Content="start" Name="startBtn" Grid.Column="1" HorizontalAlignment="Stretch" Grid.Row="4" VerticalAlignment="Stretch" Click="startBtn_Click"/>
-        <Button Content="stop" Name="stopBtn" Grid.Column="0" HorizontalAlignment="Stretch" Grid.Row="4" VerticalAlignment="Stretch" Click="stopBtn_Click"/>
-        <RadioButton Name="axisH_radio" GroupName="info" Content="oś H" HorizontalAlignment="Stretch" Margin="0,0,0,0" Grid.Row="1" VerticalAlignment="Stretch" IsChecked="True"/>
-        <RadioButton Name="axisV_radio" GroupName="info" Content="oś V" Grid.Column="1" HorizontalAlignment="Stretch" Margin="0,0,0,0" Grid.Row="1" VerticalAlignment="Stretch"/>
+        <Grid Grid.Row="4">
+            <Grid.RowDefinitions>
+                <RowDefinition/>
+                <RowDefinition/>
+            </Grid.RowDefinitions>
+            <Button Content="start" Name="startBtn" Grid.Column="1" HorizontalAlignment="Stretch" Grid.Row="0" VerticalAlignment="Stretch" Click="startBtn_Click"/>
+            <Button Content="stop" Name="stopBtn" Grid.Column="0" HorizontalAlignment="Stretch" Grid.Row="1" VerticalAlignment="Stretch" Click="stopBtn_Click"/>
+        </Grid>
+        <Button Content="Show Board" Name="openBoard" Grid.Column="1" HorizontalAlignment="Stretch" Grid.Row="4" VerticalAlignment="Stretch" Click="showBoard_Click"/>
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition/>
+                <ColumnDefinition/>
+            </Grid.ColumnDefinitions>
+            <RadioButton Name="axisH_radio" GroupName="info" Content="oś H" HorizontalAlignment="Stretch" Margin="0,0,0,0" Grid.Column="0" VerticalAlignment="Stretch" IsChecked="True" Checked="axis_radio_Checked"/>
+            <RadioButton Name="axisV_radio" GroupName="info" Content="oś V" HorizontalAlignment="Stretch" Margin="1,0,0,0" Grid.Column="1" VerticalAlignment="Stretch" Checked="axis_radio_Checked"/>
+        </Grid>
+        <Grid Grid.Row="1" Grid.Column="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition/>
+                <ColumnDefinition/>
+            </Grid.ColumnDefinitions>
+            <RadioButton Name="sma_radio" GroupName="ma" Content="SMA" HorizontalAlignment="Stretch" Margin="0,0,0,0" Grid.Column="0" VerticalAlignment="Stretch" IsChecked="True"/>
+            <RadioButton Name="ema_radio" GroupName="ma" Content="EMA" HorizontalAlignment="Stretch" Margin="1,0,0,0" Grid.Column="1" VerticalAlignment="Stretch" />
+        </Grid>
+        <Label Name="H_label" Content="h" HorizontalAlignment="Stretch" Grid.Row="2" VerticalAlignment="Stretch"/>
+        <Label x:Name="V_label" Content="v" HorizontalAlignment="Stretch" Grid.Row="2" VerticalAlignment="Stretch" Grid.Column="1"/>
+        <lvc:CartesianChart Series="{Binding Series}" Grid.Row="3" Grid.ColumnSpan="2" Hoverable="False">
+            <lvc:CartesianChart.AxisX>
+                <!--a small visual improvement, lets hide the first points (x = 0, x=1) to get better animations-->
+                <lvc:Axis MinValue="2"></lvc:Axis>
+            </lvc:CartesianChart.AxisX>
+            <lvc:CartesianChart.AxisY>
+                <lvc:Axis MinValue="100"></lvc:Axis>
+                <lvc:Axis MaxValue="400"></lvc:Axis>
+            </lvc:CartesianChart.AxisY>
+        </lvc:CartesianChart>
     </Grid>
 </Window>
