@@ -10,6 +10,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Threading;
 
@@ -32,10 +33,32 @@ namespace JINS
         const string SMALL_LEFT = "small left";
         const string SMALL_RIGHT = "small right";
         const string NOISE = "noise";
+        const string BOTH_EYES = "full";
+        const string LEFT_EYE = "left";
+        const string RIGHT_EYE = "right";
 
         //options
-        const int TIME_WINDOW = 200;
-        const float MIN_POSITIVES_TO_DECLARE_MOVE = 0.8f; 
+        const int TIME_WINDOW = 100;
+        const float MIN_POSITIVES_TO_DECLARE_MOVE = 0.8f;
+        /// <summary>
+        /// f-full (both eyes), r- right, l-left
+        /// </summary>
+        const string EYE_MODE =BOTH_EYES;
+
+        //TODO: USTAWIANE PRZEZ JAKIS INITIAL CONFIG NA STARCIE PROGRAMU
+        //ZAKRESY SYGNALU DO RUCHOW
+        const int NEUTRAL_RANGE_H_MIN = 280;
+        const int NEUTRAL_RANGE_H_max =420;
+        const int SMALL_LEFT_MIN = 260;
+        const int SMALL_LEFT_MAX = 280;
+        const int BIG_LEFT_MIN = 220;
+        const int BIG_LEFT_MAX = 260;
+        const int SMALL_RIGHT_MIN = 420;
+        const int SMALL_RIGHT_MAX = 450;
+        const int BIG_RIGHT_MIN = 450;
+        const int BIG_RIGHT_MAX = 520;
+
+
         #endregion
 
         //okno do testowania gdzie sa galki oczne
@@ -202,14 +225,15 @@ namespace JINS
             Application.Current.Dispatcher.Invoke(DispatcherPriority.Normal, action);
         }
 
-        static double alpha = 0.5;
-        static int EMA_window=100;
+        const double ALPHA = 0.5;
+        const int EMA_WINDOW=100;
         double lastFiltered_V = 0.0;
         double index_V = 0;
         double lastFiltered_H = 0.0;
         double index_H = 0;
-        double[] sma_h = new double[10];
-        double[] sma_v = new double[10];
+        const int SMA_TIME_WINDOW = 10;
+        double[] sma_h = new double[SMA_TIME_WINDOW];
+        double[] sma_v = new double[SMA_TIME_WINDOW];
         int sma_index_h = 0;
         int sma_index_v = 0;
         private double applySMA(double val, bool isV)
@@ -270,7 +294,7 @@ namespace JINS
                     index_V++;
                     return val;
                 }
-                 else if (index_V < EMA_window)
+                 else if (index_V < EMA_WINDOW)
                 {
                     lastFiltered_V = (lastFiltered_V+val)/2;
                     index_V++;
@@ -278,7 +302,7 @@ namespace JINS
                 }
                 else
                 {
-                    lastFiltered_V = ((alpha * lastFiltered_V) + ((1-alpha)*val));
+                    lastFiltered_V = ((ALPHA * lastFiltered_V) + ((1-ALPHA)*val));
                     return lastFiltered_V;
                 }
             }
@@ -290,7 +314,7 @@ namespace JINS
                     index_H++;
                     return val;
                 }
-                else if (index_H < EMA_window)
+                else if (index_H < EMA_WINDOW)
                 {
                     lastFiltered_H = (lastFiltered_H + val) / 2;
                     index_H++;
@@ -298,7 +322,7 @@ namespace JINS
                 }
                 else
                 {
-                    lastFiltered_H = ((alpha * lastFiltered_H) + ((1 - alpha) * val));
+                    lastFiltered_H = ((ALPHA * lastFiltered_H) + ((1 - ALPHA) * val));
                     return lastFiltered_H;
                 }
 
@@ -313,7 +337,20 @@ namespace JINS
             if (int.TryParse(right, out v1) && int.TryParse(left, out v2))
             {
                 //średnia z obu oczu
-                int avg = (v1 + v2) / 2;
+
+                int avg;
+                if(EYE_MODE == BOTH_EYES)
+                {
+                    avg= (v1 + v2) / 2;
+                }
+                else if(EYE_MODE == LEFT_EYE)
+                {
+                    avg = v2;
+                }
+                else if(EYE_MODE == RIGHT_EYE)
+                {
+                    avg = v1;
+                }
                 //nałóż filtr
                 if (sma_radio.IsChecked==true)
                 {
@@ -376,8 +413,19 @@ namespace JINS
             int v2;
             if (int.TryParse(right, out v1) && int.TryParse(left, out v2))
             {
-                //średnia z obu oczu
-                int avg = (v1 + v2) / 2;
+                int avg;
+                if (EYE_MODE == BOTH_EYES)
+                {
+                    avg = (v1 + v2) / 2;
+                }
+                else if (EYE_MODE == LEFT_EYE)
+                {
+                    avg = v2;
+                }
+                else if (EYE_MODE == RIGHT_EYE)
+                {
+                    avg = v1;
+                }
                 //nałóż filtr
                 if (sma_radio.IsChecked==true)
                 {
@@ -395,8 +443,11 @@ namespace JINS
                 {
                     hQueue.Dequeue();
                 }
-
-                return GuessH(avg);
+                string result = "";
+                Parallel.Invoke(
+                () => result =  CheckLeft(),
+                () => result = CheckRight());
+                return result;
             }
             return "?";
         }
@@ -433,6 +484,108 @@ namespace JINS
                 return NOISE;
             }
         }
+
+        string CheckRight()
+        {
+            float min_percentage_up = hQueue.Count/5;
+            float min_percentage_down = hQueue.Count / 5;
+            float percentage_up = 0;
+            float percentage_down = 0;
+            int prev_val = hQueue.First();
+            int peak = prev_val;
+            int queue_max = hQueue.Max();
+            int queue_min = hQueue.Min();
+            if (queue_max <= NEUTRAL_RANGE_H_max && queue_min >= NEUTRAL_RANGE_H_MIN)
+            {
+                return NEUTRAL;
+            }
+            else if (queue_max <= BIG_RIGHT_MAX)
+            {
+                for (int i = 0; i < hQueue.Count; i++)
+                {
+                    int val = hQueue.ElementAt(i);
+                    
+                    if (val >= prev_val)
+                    {
+                        percentage_up++;
+                    }
+                    else if (val < prev_val && percentage_up >= min_percentage_up)
+                    {
+                        percentage_down++;
+                        if (percentage_down >= min_percentage_down)
+                        {
+                            if(queue_max> BIG_RIGHT_MIN)
+                            {
+                                return BIG_RIGHT;
+                            }
+                            else if(queue_max > SMALL_RIGHT_MIN)
+                            {
+                                return SMALL_RIGHT;
+                            }
+                        }
+                    }
+                    prev_val = val;
+                }
+            }
+            else if (queue_max > BIG_RIGHT_MAX)
+            {
+                return NOISE;
+            }
+
+           return "";
+        }
+
+        string CheckLeft()
+        {
+            float min_percentage_up = hQueue.Count / 5;
+            float min_percentage_down = hQueue.Count / 5;
+            float percentage_up = 0;
+            float percentage_down = 0;
+            int prev_val = hQueue.First();
+            int peak = prev_val;
+            int queue_max = hQueue.Max();
+            int queue_min = hQueue.Min();
+            if (queue_max <= NEUTRAL_RANGE_H_max && queue_min >= NEUTRAL_RANGE_H_MIN)
+            {
+                return "";
+            }
+            else if (queue_max <= BIG_LEFT_MAX)
+            {
+                for (int i = 0; i < hQueue.Count; i++)
+                {
+                    int val = hQueue.ElementAt(i);
+
+                    if (val >= prev_val)
+                    {
+                        percentage_up++;
+                    }
+                    else if (val < prev_val && percentage_down >= min_percentage_down)
+                    {
+                        percentage_down++;
+                        if (percentage_down >= min_percentage_down)
+                        {
+                            if (queue_max > BIG_LEFT_MIN)
+                            {
+                                return BIG_LEFT;
+                            }
+                            else if (queue_max > SMALL_LEFT_MIN)
+                            {
+                                return SMALL_LEFT;
+                            }
+                        }
+                    }
+                    prev_val = val;
+                }
+            }
+            else if (queue_max > BIG_LEFT_MAX)
+            {
+                return NOISE;
+            }
+
+            return "";
+        }
+
+
         /// <summary>
         /// sprawdza, czy procent danych w oknie czasowym jest w zakresie podanego ruchu
         /// </summary>
@@ -486,11 +639,11 @@ namespace JINS
                 V_label.Content = text;
             }
         }
-
+        
         private void PopulateHtext(string right, string left)
         {
             string text = DetermineH(left, right);
-            if (text != "?")
+            if (text != "?" && !string.IsNullOrEmpty(text))
             {
                 H_label.Content = text;
             }
