@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Controls;
 
@@ -25,21 +26,37 @@ namespace JINS
         {
             int row = int.Parse(currentRadioCheckedName[0].ToString());
             int column = int.Parse(currentRadioCheckedName[1].ToString());
-            if (direction == "left" && column>0)
+            if (direction == MainWindow.SMALL_LEFT && column>0)
             {
                 column--;
             }
-            if(direction== "right" && column < 2)
+            else if (direction == MainWindow.BIG_LEFT)
+            {
+                column=0;
+            }
+            if (direction == MainWindow.SMALL_RIGHT && column < 2)
             {
                 column++;
             }
-            if (direction == "up" && row > 0)
+            else if (direction == MainWindow.BIG_RIGHT)
+            {
+                column=2;
+            }
+            if (direction == MainWindow.SMALL_UP && row > 0)
             {
                 row--;
             }
-            if (direction == "down" && row < 2)
+            else if (direction == MainWindow.BIG_UP)
+            {
+                row=0;
+            }
+            if (direction == MainWindow.SMALL_DOWN && row < 2)
             {
                 row++;
+            }
+            else if (direction == MainWindow.BIG_DOWN)
+            {
+                row = 2;
             }
             currentRadioCheckedName = string.Concat(row, column);
 

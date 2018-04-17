@@ -23,19 +23,21 @@ namespace JINS
     {
         #region CONSTS
         //strings
-        const string NEUTRAL = "neutral";
-        const string BIG_UP = "big up";
-        const string BIG_DOWN = "big down";
-        const string BIG_LEFT = "big left";
-        const string BIG_RIGHT = "big right";
-        const string SMALL_UP = "small up";
-        const string SMALL_DOWN = "small down";
-        const string SMALL_LEFT = "small left";
-        const string SMALL_RIGHT = "small right";
-        const string NOISE = "noise";
-        const string BOTH_EYES = "full";
-        const string LEFT_EYE = "left";
-        const string RIGHT_EYE = "right";
+        public const string NEUTRAL = "neutral";
+        public const string RIGHT = "right";
+        public const string LEFT = "left";
+        public const string BIG_UP = "big up";
+        public const string BIG_DOWN = "big down";
+        public const string BIG_LEFT = "big left";
+        public const string BIG_RIGHT = "big right";
+        public const string SMALL_UP = "small up";
+        public const string SMALL_DOWN = "small down";
+        public const string SMALL_LEFT = "small left";
+        public const string SMALL_RIGHT = "small right";
+        public const string NOISE = "noise";
+        public const string BOTH_EYES = "full";
+        public const string LEFT_EYE = "left";
+        public const string RIGHT_EYE = "right";
 
         //options
         const int TIME_WINDOW = 100;
@@ -47,12 +49,13 @@ namespace JINS
 
         //TODO: USTAWIANE PRZEZ JAKIS INITIAL CONFIG NA STARCIE PROGRAMU
         //ZAKRESY SYGNALU DO RUCHOW
-        const int NEUTRAL_RANGE_H_MIN = 280;
+        const int NEUTRAL_RANGE_H_MIN = 330;
         const int NEUTRAL_RANGE_H_max =420;
-        const int SMALL_LEFT_MIN = 260;
-        const int SMALL_LEFT_MAX = 280;
+        const int SMALL_LEFT_MIN = 290;
+        const int SMALL_LEFT_MAX = 330;
         const int BIG_LEFT_MIN = 220;
-        const int BIG_LEFT_MAX = 260;
+        const int BIG_LEFT_MAX = 290;
+
         const int SMALL_RIGHT_MIN = 420;
         const int SMALL_RIGHT_MAX = 450;
         const int BIG_RIGHT_MIN = 450;
@@ -70,7 +73,7 @@ namespace JINS
         bool stopCondition = false;
         Queue<int> vQueue;
         Queue<int> hQueue;
-        string lastHString;
+        string lastHString = NEUTRAL;
         string lastVstring;
 
         public MainWindow()
@@ -444,9 +447,18 @@ namespace JINS
                     hQueue.Dequeue();
                 }
                 string result = "";
-                Parallel.Invoke(
-                () => result =  CheckLeft(),
-                () => result = CheckRight());
+                if (hQueue.Max() <= NEUTRAL_RANGE_H_max && hQueue.Min() >= NEUTRAL_RANGE_H_MIN)
+                {
+                    return NEUTRAL;
+                }
+                else
+                {
+                    Parallel.Invoke(
+                    () => result = CheckLeft(),
+                    () => result = CheckRight());
+
+                }
+                MoveRadios(result);
                 return result;
             }
             return "?";
@@ -487,101 +499,95 @@ namespace JINS
 
         string CheckRight()
         {
-            float min_percentage_up = hQueue.Count/5;
-            float min_percentage_down = hQueue.Count / 5;
-            float percentage_up = 0;
-            float percentage_down = 0;
-            int prev_val = hQueue.First();
-            int peak = prev_val;
-            int queue_max = hQueue.Max();
-            int queue_min = hQueue.Min();
-            if (queue_max <= NEUTRAL_RANGE_H_max && queue_min >= NEUTRAL_RANGE_H_MIN)
-            {
-                return NEUTRAL;
-            }
-            else if (queue_max <= BIG_RIGHT_MAX)
-            {
-                for (int i = 0; i < hQueue.Count; i++)
+        //    if (lastHString != RIGHT)
+         //   {
+                float min_percentage_up = hQueue.Count / 5;
+                float min_percentage_down = hQueue.Count / 5;
+                float percentage_up = 0;
+                float percentage_down = 0;
+                int prev_val = hQueue.First();
+                int queue_max = hQueue.Max();
+                int queue_min = hQueue.Min();
+               if (queue_max > SMALL_RIGHT_MIN)
                 {
-                    int val = hQueue.ElementAt(i);
-                    
-                    if (val >= prev_val)
+                    for (int i = 0; i < hQueue.Count; i++)
                     {
-                        percentage_up++;
-                    }
-                    else if (val < prev_val && percentage_up >= min_percentage_up)
-                    {
-                        percentage_down++;
-                        if (percentage_down >= min_percentage_down)
+                        int val = hQueue.ElementAt(i);
+
+                        if (val >= prev_val)
                         {
-                            if(queue_max> BIG_RIGHT_MIN)
+                            percentage_up++;
+                        }
+                        else if (val < prev_val && percentage_up >= min_percentage_up)
+                        {
+                            percentage_down++;
+                            if (percentage_down >= min_percentage_down)
                             {
-                                return BIG_RIGHT;
-                            }
-                            else if(queue_max > SMALL_RIGHT_MIN)
-                            {
-                                return SMALL_RIGHT;
+                                if (queue_max <= SMALL_RIGHT_MAX)
+                                {
+                                    return SMALL_RIGHT;
+                                }
+                                else if (queue_max <= BIG_RIGHT_MAX)
+                                {
+                                    return BIG_RIGHT;
+                                }
                             }
                         }
+                        prev_val = val;
                     }
-                    prev_val = val;
                 }
-            }
-            else if (queue_max > BIG_RIGHT_MAX)
-            {
-                return NOISE;
-            }
-
+                else if (queue_max > BIG_RIGHT_MAX)
+                {
+                    return NOISE;
+                }
+   //         }
            return "";
         }
 
         string CheckLeft()
         {
-            float min_percentage_up = hQueue.Count / 5;
-            float min_percentage_down = hQueue.Count / 5;
-            float percentage_up = 0;
-            float percentage_down = 0;
-            int prev_val = hQueue.First();
-            int peak = prev_val;
-            int queue_max = hQueue.Max();
-            int queue_min = hQueue.Min();
-            if (queue_max <= NEUTRAL_RANGE_H_max && queue_min >= NEUTRAL_RANGE_H_MIN)
-            {
-                return "";
-            }
-            else if (queue_max <= BIG_LEFT_MAX)
-            {
-                for (int i = 0; i < hQueue.Count; i++)
+          //  if (lastHString != LEFT)
+          //  {
+                float min_percentage_up = hQueue.Count / 5;
+                float min_percentage_down = hQueue.Count / 5;
+                float percentage_up = 0;
+                float percentage_down = 0;
+                int prev_val = hQueue.First();
+                int queue_max = hQueue.Max();
+                int queue_min = hQueue.Min();
+                if (queue_min < SMALL_LEFT_MAX)
                 {
-                    int val = hQueue.ElementAt(i);
+                    for (int i = 0; i < hQueue.Count; i++)
+                    {
+                        int val = hQueue.ElementAt(i);
 
-                    if (val >= prev_val)
-                    {
-                        percentage_up++;
-                    }
-                    else if (val < prev_val && percentage_down >= min_percentage_down)
-                    {
-                        percentage_down++;
-                        if (percentage_down >= min_percentage_down)
+                        if (val <= prev_val)
                         {
-                            if (queue_max > BIG_LEFT_MIN)
+                            percentage_down++;
+                        }
+                        else if (val > prev_val && percentage_down >= min_percentage_down)
+                        {
+                            percentage_up++;
+                            if (percentage_up >= min_percentage_up)
                             {
-                                return BIG_LEFT;
-                            }
-                            else if (queue_max > SMALL_LEFT_MIN)
-                            {
-                                return SMALL_LEFT;
+                                if (queue_min >= SMALL_LEFT_MIN)
+                                {
+                                    return SMALL_LEFT;
+                                }
+                                else if (queue_min > BIG_LEFT_MIN)
+                                {
+                                    return BIG_LEFT;
+                                }
                             }
                         }
+                        prev_val = val;
                     }
-                    prev_val = val;
                 }
-            }
-            else if (queue_max > BIG_LEFT_MAX)
-            {
-                return NOISE;
-            }
-
+                else if (queue_min < BIG_LEFT_MIN)
+                {
+                    return NOISE;
+                }
+        //    }
             return "";
         }
 
@@ -645,7 +651,20 @@ namespace JINS
             string text = DetermineH(left, right);
             if (text != "?" && !string.IsNullOrEmpty(text))
             {
-                H_label.Content = text;
+                if(text == BIG_RIGHT ||text == SMALL_RIGHT)
+                {
+                    lastHString = RIGHT;
+                    H_label.Content = text;
+                }
+                else if(text == SMALL_LEFT || text == BIG_LEFT){
+                    lastHString = LEFT;
+                    H_label.Content = text;
+
+                }
+                else
+                {
+                    lastHString = NEUTRAL;
+                }
             }
         }
 
