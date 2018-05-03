@@ -59,8 +59,8 @@
                 <ColumnDefinition/>
                 <ColumnDefinition/>
             </Grid.ColumnDefinitions>
-            <RadioButton Name="sma_radio" GroupName="ma" Content="SMA" HorizontalAlignment="Stretch" Margin="0,0,0,0" Grid.Column="0" VerticalAlignment="Stretch" IsChecked="True"/>
-            <RadioButton Name="ema_radio" GroupName="ma" Content="EMA" HorizontalAlignment="Stretch" Margin="1,0,0,0" Grid.Column="1" VerticalAlignment="Stretch" />
+            <RadioButton Name="sma_radio" GroupName="ma" Content="SMA" HorizontalAlignment="Stretch" Margin="0,0,0,0" Grid.Column="0" VerticalAlignment="Stretch" IsChecked="True" Checked="on_maMethod_check"/>
+            <RadioButton Name="ema_radio" GroupName="ma" Content="EMA" HorizontalAlignment="Stretch" Margin="1,0,0,0" Grid.Column="1" VerticalAlignment="Stretch" Checked="on_maMethod_check" />
         </Grid>
         <Label Name="H_label" Content="h" HorizontalAlignment="Stretch" Grid.Row="2" VerticalAlignment="Stretch"/>
         <Label x:Name="V_label" Content="v" HorizontalAlignment="Stretch" Grid.Row="2" VerticalAlignment="Stretch" Grid.Column="1"/>
