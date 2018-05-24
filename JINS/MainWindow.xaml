@@ -70,7 +70,7 @@
                 <lvc:Axis MinValue="2"></lvc:Axis>
             </lvc:CartesianChart.AxisX>
             <lvc:CartesianChart.AxisY>
-                <lvc:Axis MinValue="100"></lvc:Axis>
+                <lvc:Axis MinValue="-400"></lvc:Axis>
                 <lvc:Axis MaxValue="400"></lvc:Axis>
             </lvc:CartesianChart.AxisY>
         </lvc:CartesianChart>

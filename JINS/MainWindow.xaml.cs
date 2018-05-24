@@ -21,7 +21,7 @@ namespace JINS
     /// <summary>
     /// Interaction logic for MainWindow.xaml
     /// </summary>
-    public partial class MainWindow : Window, INotifyPropertyChanged
+    public partial class MainWindow : Window, INotifyPropertyChanged, IDisposable
     {
         #region CONSTS
         //strings
@@ -50,7 +50,7 @@ namespace JINS
         const string EYE_MODE = BOTH_EYES;
 
         //TODO: USTAWIANE PRZEZ JAKIS INITIAL CONFIG NA STARCIE PROGRAMU
-        //ZAKRESY SYGNALU DO RUCHOW
+        //ZAKRESY SYGNALU DO RUCHOW H
         const int NEUTRAL_RANGE_H_MIN = 330;
         const int NEUTRAL_RANGE_H_max = 400;
 
@@ -63,6 +63,20 @@ namespace JINS
         const int SMALL_RIGHT_MAX = 430;
         const int BIG_RIGHT_MIN = 430;
         const int BIG_RIGHT_MAX = 520;
+
+        //ZAKRESY SYGNALU DO RUCHOW V
+        const int NEUTRAL_RANGE_V_MIN = -60;
+        const int NEUTRAL_RANGE_V_max = -30;
+
+        const int SMALL_UP_MIN = -30;
+        const int SMALL_UP_MAX = 0;
+        const int BIG_UP_MIN = 0;
+        const int BIG_UP_MAX = 100;
+
+        const int SMALL_DOWN_MIN = -80;
+        const int SMALL_DOWN_MAX = -60;
+        const int BIG_DOWN_MIN = -160;
+        const int BIG_DOWN_MAX = -80;
 
 
         #endregion
@@ -84,8 +98,8 @@ namespace JINS
         //string lastHString = "";
 
 
-        CancellationTokenSource tokenSource;
-        
+        CancellationTokenSource h_tokenSource;
+        CancellationTokenSource v_tokenSource;
 
         public MainWindow()
         {
@@ -210,8 +224,8 @@ namespace JINS
         private void ShowData(string raw)
         {
             string[] data = raw.Split(',');
+            DetermineV(data[12], data[13]); 
             DetermineH(data[10], data[11]);
-
 
             this.Dispatcher.Invoke(() =>
             {
@@ -224,8 +238,6 @@ namespace JINS
                 {
                     rawText.Text = data[12] + "," + data[13];
                 }
-                PopulateVtext(data[12], data[13]);
-                ///PopulateHtext(data[10], data[11]);
             });
         }
 
@@ -348,14 +360,12 @@ namespace JINS
 
         }
 
-        private string DetermineV(string right, string left)
+        private void DetermineV(string right, string left)
         {
             int v1;
             int v2;
             if (int.TryParse(right, out v1) && int.TryParse(left, out v2))
             {
-                //średnia z obu oczu
-
                 int avg;
                 if (EYE_MODE == BOTH_EYES)
                 {
@@ -370,58 +380,60 @@ namespace JINS
                     avg = v1;
                 }
                 //nałóż filtr
-                if (sma_radio.IsChecked == true)
+                if (useSMA == true)
                 {
-                    avg = (int)applySMA(avg, true);
+                    avg = (int)applySMA(avg,true);
                 }
                 else
                 {
                     avg = (int)applyEMA(avg, true);
                 }
                 vQueue.Enqueue(avg);
-
-                if (axisV_radio.IsChecked == true)
+                if (isHAxisChecked == false)
                     PlotData(avg);
+
                 if (vQueue.Count >= TIME_WINDOW)
                 {
                     vQueue.Dequeue();
                 }
+                //nie sprawdzacj ruchu po ostatnio wykrytym
+                if (vCounter > TIME_WINDOW / 5)
+                {
+                    vCounter--;
+                }
+                else
+                {
+                    if (vQueue.Max() <= NEUTRAL_RANGE_V_max && vQueue.Min() >= NEUTRAL_RANGE_V_MIN)
+                    {
+                        //return NEUTRAL;
+                    }
+                    else
+                    {
+                        v_tokenSource = new CancellationTokenSource();
+                        CancellationToken ct;
+                        var tasks = new ConcurrentBag<Task>();
+                        ct = v_tokenSource.Token;
+                        var t = Task.Factory.StartNew(() => CheckUp(), v_tokenSource.Token);
+                        tasks.Add(t);
+                        t = Task.Factory.StartNew(() => CheckDown(), v_tokenSource.Token);
+                        tasks.Add(t);
 
-                return GuessV(avg);
-            }
-            return "?";
-        }
+                        try
+                        {
+                            Task.WaitAll(tasks.ToArray());
+                        }
+                        catch (AggregateException e)
+                        {
+                            //foreach (var v in e.InnerExceptions)
+                            //    Console.WriteLine(e.Message + " " + v.Message);
+                        }
+                        finally
+                        {
+                            v_tokenSource.Dispose();
+                        }
 
-        private string GuessV(int value)
-        {
-
-            if (CheckIfInRange(-80, -10, true))
-            {
-                return NEUTRAL;
-            }
-            else if (CheckIfInRange(-120, -80, true))
-            {
-                MoveRadios(BIG_DOWN);
-                return BIG_DOWN;
-            }
-            else if (CheckIfInRange(30, 100, true))
-            {
-                MoveRadios(BIG_UP);
-                return BIG_UP;
-            }
-            else if (CheckIfInRange(-120, -80, true))
-            {
-                MoveRadios(SMALL_DOWN);
-                return SMALL_DOWN;
-            }
-            else if (CheckIfInRange(-30, -10, true))
-            {
-                MoveRadios(SMALL_UP);
-                return SMALL_UP;
-            }
-            else
-            {
-                return NOISE;
+                    }
+                }
             }
         }
 
@@ -475,13 +487,13 @@ namespace JINS
                     }
                     else
                     {
-                        tokenSource = new CancellationTokenSource();
+                        h_tokenSource = new CancellationTokenSource();
                         CancellationToken ct;
                         var tasks = new ConcurrentBag<Task>();
-                        ct = tokenSource.Token;
-                        var t = Task.Factory.StartNew(() => CheckLeft(), tokenSource.Token);
+                        ct = h_tokenSource.Token;
+                        var t = Task.Factory.StartNew(() => CheckLeft(), h_tokenSource.Token);
                         tasks.Add(t);
-                        t = Task.Factory.StartNew(() => CheckRight(), tokenSource.Token);
+                        t = Task.Factory.StartNew(() => CheckRight(), h_tokenSource.Token);
                         tasks.Add(t);
 
                         try
@@ -495,7 +507,7 @@ namespace JINS
                         }
                         finally
                         {
-                            tokenSource.Dispose();
+                            h_tokenSource.Dispose();
                         }
 
                     }
@@ -508,43 +520,125 @@ namespace JINS
             if (!string.IsNullOrEmpty(val))
             {
                 Application.Current.Dispatcher.Invoke(() =>
-                PopulateHtext(val));
+                    PopulateText(val)
+                );
                 Application.Current.Dispatcher.Invoke(() => MoveRadios(val));
             }
         }
 
-
-        private string GuessH(int value)
+        void PopulateText(string val)
         {
+                PopulateHtext(val);
+                PopulateVtext(val);
+        }
 
-            if (CheckIfInRange(280, 420, false))
+
+        string CheckUp()
+        {
+            //    if (lastHString != UP)
+            //   {
+            float min_percentage_up = vQueue.Count / 5;
+            float min_percentage_down = vQueue.Count / 5;
+            //procent wartosci rosnacych
+            float percentage_up = 0;
+            //procent wartowsi malejacych
+            float percentage_down = 0;
+            int prev_val = vQueue.First();
+            int queue_max = vQueue.Max();
+            int queue_min = vQueue.Min();
+            if (queue_max > SMALL_UP_MIN)
             {
-                return NEUTRAL;
+                for (int i = 0; i < vQueue.Count; i++)
+                {
+                    int val = vQueue.ElementAt(i);
+
+                    if (val >= prev_val)
+                    {
+                        percentage_up++;
+                    }
+                    else if (val < prev_val && percentage_up >= min_percentage_up)
+                    {
+                        percentage_down++;
+                        if (percentage_down >= min_percentage_down)
+                        {
+                            if (queue_max <= SMALL_UP_MAX)
+                            {
+                                EndHSearch(SMALL_UP);
+                                vCounter = TIME_WINDOW;
+                                v_tokenSource.Cancel();
+                                return (SMALL_UP);
+                            }
+                            else if (queue_max <= BIG_UP_MAX)
+                            {
+                                EndHSearch(BIG_UP);
+                                vCounter = TIME_WINDOW;
+                                v_tokenSource.Cancel();
+                                return (BIG_UP);
+                            }
+                        }
+                    }
+                    prev_val = val;
+                }
             }
-            else if (CheckIfInRange(260, 280, false))
+            else if (queue_max > BIG_UP_MAX)
             {
-                //MoveRadios(SMALL_LEFT);
-                return SMALL_LEFT;
+                return "";// NOISE;
             }
-            else if (CheckIfInRange(420, 450, false))
+            //         }
+            return "";
+        }
+
+        string CheckDown()
+        {
+            //  if (lastHString != DOWN)
+            //  {
+            float min_percentage_up = vQueue.Count / 5;
+            float min_percentage_down = vQueue.Count / 5;
+            float percentage_up = 0;
+            float percentage_down = 0;
+            int prev_val = vQueue.First();
+            int queue_max = vQueue.Max();
+            int queue_min = vQueue.Min();
+            if (queue_min < SMALL_DOWN_MAX)
             {
-                // MoveRadios(SMALL_RIGHT);
-                return SMALL_RIGHT;
+                for (int i = 0; i < vQueue.Count; i++)
+                {
+                    int val = vQueue.ElementAt(i);
+
+                    if (val <= prev_val)
+                    {
+                        percentage_down++;
+                    }
+                    else if (val > prev_val && percentage_down >= min_percentage_down)
+                    {
+                        percentage_up++;
+                        if (percentage_up >= min_percentage_up)
+                        {
+                            if (queue_min >= SMALL_DOWN_MIN)
+                            {
+                                EndHSearch(SMALL_DOWN);
+                                vCounter = TIME_WINDOW;
+                                v_tokenSource.Cancel();
+                                return (SMALL_DOWN);
+                            }
+                            else if (queue_min > BIG_DOWN_MIN)
+                            {
+                                EndHSearch(BIG_DOWN);
+                                vCounter = TIME_WINDOW;
+                                v_tokenSource.Cancel();
+                                return (BIG_DOWN);
+                            }
+                        }
+                    }
+                    prev_val = val;
+                }
             }
-            else if (CheckIfInRange(220, 260, false))
+            else if (queue_min < BIG_DOWN_MIN)
             {
-                //MoveRadios(BIG_LEFT);
-                return BIG_LEFT;
+                return ""; //NOISE;
             }
-            else if (CheckIfInRange(450, 520, false))
-            {
-                //MoveRadios(BIG_RIGHT);
-                return BIG_RIGHT;
-            }
-            else
-            {
-                return NOISE;
-            }
+            //    }
+            return "";
         }
 
         string CheckRight()
@@ -577,14 +671,14 @@ namespace JINS
                             {
                                 EndHSearch(SMALL_RIGHT);
                                 hCounter = TIME_WINDOW;
-                                tokenSource.Cancel();
+                                h_tokenSource.Cancel();
                                 return (SMALL_RIGHT);
                             }
                             else if (queue_max <= BIG_RIGHT_MAX)
                             {
                                 EndHSearch(BIG_RIGHT);
                                 hCounter = TIME_WINDOW;
-                                tokenSource.Cancel();
+                                h_tokenSource.Cancel();
                                 return (BIG_RIGHT);
                             }
                         }
@@ -630,14 +724,14 @@ namespace JINS
                             {
                                 EndHSearch(SMALL_LEFT);
                                 hCounter = TIME_WINDOW;
-                                tokenSource.Cancel();
+                                h_tokenSource.Cancel();
                                 return (SMALL_LEFT);
                             }
                             else if (queue_min > BIG_LEFT_MIN)
                             {
                                 EndHSearch(BIG_LEFT);
                                 hCounter = TIME_WINDOW;
-                                tokenSource.Cancel();
+                                h_tokenSource.Cancel();
                                 return (BIG_LEFT);
                             }
                         }
@@ -653,58 +747,25 @@ namespace JINS
             return "";
         }
 
-
-        /// <summary>
-        /// sprawdza, czy procent danych w oknie czasowym jest w zakresie podanego ruchu
-        /// </summary>
-        /// <param name="min"></param>
-        /// <param name="max"></param>
-        /// <param name="isV"></param>
-        /// <returns></returns>
-        bool CheckIfInRange(int min, int max, bool isV = false)
+        private void PopulateVtext(string text)
         {
-            int positives = 0;
-            float percentage = 0f;
-            if (isV)
+            if (text != "?" && !string.IsNullOrEmpty(text))
             {
-                foreach (int i in vQueue)
+                if (text == BIG_DOWN || text == SMALL_DOWN)
                 {
-                    if (i > min && i < max)
-                    {
-                        positives++;
-                    }
+                    //lastHString = DOWN;
+                    V_label.Content = text;
                 }
-                percentage = (float)positives / (float)vQueue.Count;
-                if (percentage > MIN_POSITIVES_TO_DECLARE_MOVE)
+                else if (text == BIG_UP || text == SMALL_UP)
                 {
-                    return true;
-                }
-                else return false;
-            }
-            else
-            {
-                foreach (int i in hQueue)
-                {
-                    if (i > min && i < max)
-                    {
-                        positives++;
-                    }
-                }
-                percentage = (float)positives / (float)hQueue.Count;
-                if (percentage > MIN_POSITIVES_TO_DECLARE_MOVE)
-                {
-                    return true;
-                }
-                else return false;
-            }
-        }
+                    //lastHString = UP;
+                    V_label.Content = text;
 
-        private void PopulateVtext(string right, string left)
-        {
-            string text = DetermineV(right, left);
-            if (text != "?")
-            {
-                V_label.Content = text;
+                }
+                else
+                {
+                    //lastHString = NEUTRAL;
+                }
             }
         }
 
@@ -796,6 +857,13 @@ namespace JINS
             {
                 useSMA = false;
             }
+        }
+
+        public void Dispose()
+        {
+            h_tokenSource.Dispose();
+            v_tokenSource.Dispose();
+            
         }
     }
 }
